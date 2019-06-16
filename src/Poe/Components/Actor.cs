@@ -79,9 +79,9 @@ namespace PoeHUD.Poe.Components
                 var skillsEndPointer = M.ReadLong(Address + 0x3C0);
                 skillsStartPointer += 8;//Don't ask me why. Just skipping first one
 
-                int stuckCounter = 0;
+                int stuckCounter = 0; //Fix this please. Using a "stuck counter" is a pleb-tier solution.
                 var result = new List<ActorSkill>();
-                for (var addr = skillsStartPointer; addr < skillsEndPointer; addr += 16)//16 because we are reading each second pointer (pointer vectors)
+                for (var addr = skillsStartPointer; addr < skillsEndPointer; addr += Marshal.SizeOf(long)*2)//<- Remove 16, replace it with sizeof(x64ArchiPtrSize*2)
                 {
                     result.Add(ReadObject<ActorSkill>(addr));
                     if (stuckCounter++ > 50)
@@ -91,27 +91,27 @@ namespace PoeHUD.Poe.Components
             }
         }
 
-		public List<ActorVaalSkill> ActorVaalSkills
+	public List<ActorVaalSkill> ActorVaalSkills
+	{
+		get
 		{
-			get
+			const int ACTOR_VAAL_SKILLS_SIZE = 0x20;
+			var skillsStartPointer = M.ReadLong(Address + 0x3E8);
+			var skillsEndPointer = M.ReadLong(Address + 0x3F0);
+
+			int stuckCounter = 0;
+			var result = new List<ActorVaalSkill>();
+			for (var addr = skillsStartPointer; addr < skillsEndPointer; addr += ACTOR_VAAL_SKILLS_SIZE)
 			{
-				const int ACTOR_VAAL_SKILLS_SIZE = 0x20;
-				var skillsStartPointer = M.ReadLong(Address + 0x3E8);
-				var skillsEndPointer = M.ReadLong(Address + 0x3F0);
-
-				int stuckCounter = 0;
-				var result = new List<ActorVaalSkill>();
-				for (var addr = skillsStartPointer; addr < skillsEndPointer; addr += ACTOR_VAAL_SKILLS_SIZE)
-				{
-					result.Add(ReadObject<ActorVaalSkill>(addr));
-					if (stuckCounter++ > 50)
-						return new List<ActorVaalSkill>();
-				}
-				return result;
+				result.Add(ReadObject<ActorVaalSkill>(addr));
+				if (stuckCounter++ > 50)
+					return new List<ActorVaalSkill>();
 			}
+			return result;
 		}
+	}
 
-		public class ActionWrapper : RemoteMemoryObject
+	public class ActionWrapper : RemoteMemoryObject
         {
             public float DestinationX => M.ReadInt(Address + 0x48);
             public float DestinationY => M.ReadInt(Address + 0x4C);
@@ -119,12 +119,11 @@ namespace PoeHUD.Poe.Components
             public Vector2 CastDestination => new Vector2(DestinationX, DestinationY);
 
             public ActorSkill Skill => ReadObject<ActorSkill>(Address + 0x18);
-
         }
 
 
         [Flags]
-        public enum ActionFlags
+        public enum ActionFlags //Powers of 2 represent each actionID. 
         {
             None = 0,
             UsingAbility = 2,
